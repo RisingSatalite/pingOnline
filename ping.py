@@ -59,14 +59,35 @@ def main() -> None:
     online, output = ping(host)
 
     if online:
-        print(f"{host} is online.\n")
+        print(f"{host} is online.")
+        # attempt to extract round‑trip time from the ping output
+        time_str = extract_time(output)
+        if time_str:
+            print(f"Response {time_str}")
+        else:
+            print("(could not parse response time)")
     else:
-        print(f"{host} appears to be offline or unreachable.\n")
+        print(f"{host} appears to be offline or unreachable.")
 
-    # echo the raw ping output for debugging/visibility
-    print(output)
+    # if you need full details you can uncomment the next line
+    # print(output)
+
+
+
+# helpers
+import re
+
+def extract_time(output: str) -> str | None:
+    """Try to find the first "time" value in *ping* output.
+
+    Returns the matched substring including units (e.g. ``"time=23ms"`` or
+    ``"time<1ms"``) or ``None`` if nothing recognizable is present.
+    """
+
+    # common ping formats on Windows and Unix variants
+    match = re.search(r"time[=<]\s*<?\d+\.?\d*\s*ms", output, re.IGNORECASE)
+    return match.group() if match else None
 
 
 if __name__ == "__main__":
-    while True:
-        main()
+    main()
