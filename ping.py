@@ -117,4 +117,6 @@ def check_http(host: str, timeout: int = 5) -> bool:
         return False
 
 if __name__ == "__main__":
-    main()
+    #Keep looping until the user closes it.
+    while(True):
+        main()
