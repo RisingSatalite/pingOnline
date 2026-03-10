@@ -45,12 +45,17 @@ def main() -> None:
     """Entry point for the command line application."""
 
     parser = argparse.ArgumentParser(
-        description="Check whether a website or host is reachable via ICMP ping."
+        description="Check whether a website or host is reachable via ICMP ping or HTTP."
     )
     parser.add_argument(
         "host",
         nargs="?",
         help="Website (domain) or IP address to ping",
+    )
+    parser.add_argument(
+        "--http",
+        action="store_true",
+        help="If ping fails, try an HTTP HEAD request to the host",
     )
 
     args = parser.parse_args()
@@ -59,15 +64,19 @@ def main() -> None:
     online, output = ping(host)
 
     if online:
-        print(f"{host} is online.")
-        # attempt to extract round‑trip time from the ping output
+        print(f"{host} is online via ICMP ping.")
         time_str = extract_time(output)
         if time_str:
             print(f"Response {time_str}")
         else:
             print("(could not parse response time)")
     else:
-        print(f"{host} appears to be offline or unreachable.")
+        print(f"{host} did not respond to ping.")
+        ok = check_http(host)
+        if ok:
+            print(f"{host} appears to be online (HTTP succeeded).")
+        else:
+            print(f"HTTP check failed; {host} may be down.")
 
     # if you need full details you can uncomment the next line
     # print(output)
@@ -76,6 +85,8 @@ def main() -> None:
 
 # helpers
 import re
+import urllib.request
+from urllib.error import URLError, HTTPError
 
 def extract_time(output: str) -> str | None:
     """Try to find the first "time" value in *ping* output.
@@ -88,6 +99,22 @@ def extract_time(output: str) -> str | None:
     match = re.search(r"time[=<]\s*<?\d+\.?\d*\s*ms", output, re.IGNORECASE)
     return match.group() if match else None
 
+
+def check_http(host: str, timeout: int = 5) -> bool:
+    """Perform a simple HTTP HEAD request to the given host.
+
+    The host may be a bare domain or URL; if it doesn't start with a scheme we
+    prepend "http://".  Returns ``True`` if a connection is made and a response
+    code in the 200–399 range is received; ``False`` otherwise.
+    """
+
+    url = host if host.startswith("http") else f"http://{host}"
+    try:
+        req = urllib.request.Request(url, method="HEAD")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return 200 <= resp.status < 400
+    except (URLError, HTTPError):
+        return False
 
 if __name__ == "__main__":
     main()
