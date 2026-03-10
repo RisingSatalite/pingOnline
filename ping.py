@@ -82,7 +82,6 @@ def main() -> None:
     # print(output)
 
 
-
 # helpers
 import re
 import urllib.request
@@ -117,6 +116,4 @@ def check_http(host: str, timeout: int = 5) -> bool:
         return False
 
 if __name__ == "__main__":
-    #Keep looping until the user closes it.
-    while(True):
-        main()
+    main()
