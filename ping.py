@@ -42,25 +42,59 @@ def ping(host: str, count: int = 1, timeout: int = 5) -> tuple[bool, str]:
 
 
 def main() -> None:
-    """Entry point for the command line application."""
+    """Entry point for the command line application.
+
+    The user may combine different checks via command-line flags.  By
+    default the program attempts an ICMP ping followed by an optional HTTP
+    HEAD when ping fails.  A TCP/connect check can be requested explicitly
+    using ``--port`` or ``--service``; in that mode the ping/HTTP logic is
+    skipped.
+    """
 
     parser = argparse.ArgumentParser(
-        description="Check whether a website or host is reachable via ICMP ping or HTTP."
+        description="Check whether a website or host is reachable via ping, HTTP, or TCP."
     )
     parser.add_argument(
         "host",
         nargs="?",
-        help="Website (domain) or IP address to ping",
+        help="Website (domain) or IP address to check",
     )
     parser.add_argument(
         "--http",
         action="store_true",
         help="If ping fails, try an HTTP HEAD request to the host",
     )
+    parser.add_argument(
+        "--port",
+        type=int,
+        help="Attempt a raw TCP connection to this port",
+    )
+    parser.add_argument(
+        "--service",
+        help="Equivalent to --port but uses /etc/services (e.g. ssh, smtp)",
+    )
 
     args = parser.parse_args()
-    host = args.host or input("Enter website to ping: ")
+    host = args.host or input("Enter host to check: ")
 
+    # handle TCP/service check first if requested
+    if args.port or args.service:
+        import socket
+
+        try:
+            port = args.port or socket.getservbyname(args.service)
+        except OSError as exc:
+            print(f"Unknown service '{args.service}': {exc}")
+            return
+
+        print(f"checking TCP {host}:{port}...")
+        if check_tcp(host, port):
+            print(f"{host}:{port} is reachable via TCP.")
+        else:
+            print(f"{host}:{port} is not reachable via TCP.")
+        return
+
+    # default behavior: ping first
     online, output = ping(host)
 
     if online:
@@ -72,11 +106,12 @@ def main() -> None:
             print("(could not parse response time)")
     else:
         print(f"{host} did not respond to ping.")
-        ok = check_http(host)
-        if ok:
-            print(f"{host} appears to be online (HTTP succeeded).")
-        else:
-            print(f"HTTP check failed; {host} may be down.")
+        if args.http:
+            ok = check_http(host)
+            if ok:
+                print(f"{host} appears to be online (HTTP succeeded).")
+            else:
+                print(f"HTTP check failed; {host} may be down.")
 
     # if you need full details you can uncomment the next line
     # print(output)
@@ -116,6 +151,22 @@ def check_http(host: str, timeout: int = 5) -> bool:
         # You might want to consider 403 as "Online" for a status checker
         return e.code in [200, 301, 302, 403] 
     except URLError:
+        return False
+
+
+def check_tcp(host: str, port: int, timeout: int = 5) -> bool:
+    """Attempt a simple TCP connection to ``host:port``.
+
+    Returns ``True`` if the connection succeeds within ``timeout`` seconds,
+    ``False`` on any error (including DNS failure or connection refused).
+    """
+
+    import socket
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
         return False
 
 if __name__ == "__main__":
