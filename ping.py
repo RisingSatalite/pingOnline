@@ -100,19 +100,22 @@ def extract_time(output: str) -> str | None:
 
 
 def check_http(host: str, timeout: int = 5) -> bool:
-    """Perform a simple HTTP HEAD request to the given host.
-
-    The host may be a bare domain or URL; if it doesn't start with a scheme we
-    prepend "http://".  Returns ``True`` if a connection is made and a response
-    code in the 200–399 range is received; ``False`` otherwise.
-    """
-
-    url = host if host.startswith("http") else f"http://{host}"
+    url = host if host.startswith("http") else f"https://{host}" # Use https!
+    
+    # Pretend to be a real Chrome browser
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    
     try:
-        req = urllib.request.Request(url, method="HEAD")
+        req = urllib.request.Request(url, method="HEAD", headers=headers)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return 200 <= resp.status < 400
-    except (URLError, HTTPError):
+    except HTTPError as e:
+        # Some sites return 403 but are still "up"
+        # You might want to consider 403 as "Online" for a status checker
+        return e.code in [200, 301, 302, 403] 
+    except URLError:
         return False
 
 if __name__ == "__main__":
