@@ -119,4 +119,7 @@ def check_http(host: str, timeout: int = 5) -> bool:
         return False
 
 if __name__ == "__main__":
-    main()
+    while(True):
+        main()
+        if(input("Check another website? Y/N").upper() == "N"):
+            break
