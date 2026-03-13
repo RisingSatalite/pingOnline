@@ -5,6 +5,7 @@ import re
 import socket
 import urllib.request
 from urllib.error import URLError, HTTPError
+import shlex
 
 def ping(host: str, count: int = 1, timeout: int = 5) -> tuple[bool, str]:
     param = "-n" if platform.system().lower() == "windows" else "-c"
@@ -76,24 +77,46 @@ def run_checks(host: str, args: argparse.Namespace):
                 print(f"FAILED: {host} is unreachable via HTTP.")
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Check host reachability.")
-    # Changed to '+' to allow one or more hosts
+    # We define the parser inside or outside, but we must parse inside the loop
+    parser = argparse.ArgumentParser(description="Check host reachability.", exit_on_error=False)
     parser.add_argument("hosts", nargs="*", help="One or more hosts/IPs to check")
     parser.add_argument("--http", action="store_true", help="Try HTTP if ping fails")
     parser.add_argument("--port", type=int, help="TCP port check")
     parser.add_argument("--service", help="Service name check (e.g. ssh)")
 
-    args = parser.parse_args()
+    print("Network Checker Started. Type 'exit' or 'quit' to close.")
 
-    # If no hosts provided in CLI, ask for one
-    target_hosts = args.hosts
-    if not target_hosts:
-        user_input = input("Enter host(s) to check (separated by space): ").split()
-        target_hosts = user_input
+    while True:
+        try:
+            user_input = input("\n> Enter host(s) and flags (): ").strip()
+            
+            if user_input.lower() in ['exit', 'quit']:
+                break
+            if not user_input:
+                continue
 
-    # The Loop: Iterate through all targets
-    for host in target_hosts:
-        run_checks(host, args)
+            # shlex.split allows us to handle flags like --http correctly from a string
+            input_args = shlex.split(user_input)
+            
+            # parse_known_args is safer here in case of typos
+            args, unknown = parser.parse_known_args(input_args)
+            
+            if unknown:
+                print(f"Warning: Unrecognized arguments: {unknown}")
+
+            if not args.hosts:
+                print("Error: No host specified.")
+                continue
+
+            # Execute checks for each host provided in this loop iteration
+            for host in args.hosts:
+                run_checks(host, args)
+
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            break
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     try:
