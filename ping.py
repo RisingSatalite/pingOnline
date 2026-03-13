@@ -132,4 +132,4 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         pass
-    input("Exiting")
+    input("Exited")
