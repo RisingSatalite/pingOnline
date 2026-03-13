@@ -88,10 +88,19 @@ def main() -> None:
 
     while True:
         try:
-            user_input = input("\n> Enter host(s) and flags (): ").strip()
+            user_input = input("\n> Enter host(s) and flags (help or -h for explanation): ").strip()
             
             if user_input.lower() in ['exit', 'quit']:
                 break
+            if user_input.lower() in ['help', '-h']:
+                print("Enter a or a list of website and IP to check")
+                print("e.g., website.com or 1.1.1.1")
+                print("Add spacing between each site and IP")
+                print("Additional, add flags to check a different protocol")
+                print("Default is ping, which all service do not respond to")
+                print("Add ' --http ' to check with http protocol")
+                print("Add ' --port ? ' replace ? with the protocol you want to use")
+                print("Add ' --service ? ' replace ? with a well used protocol if you prefer")
             if not user_input:
                 continue
 
